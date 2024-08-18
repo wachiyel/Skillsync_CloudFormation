@@ -33,25 +33,30 @@ This template sets up a basic web application environment. The architecture incl
 
 - **VPC**: A Virtual Private Cloud is created with a CIDR block of `10.0.0.0/16`.
 - **Internet Gateway**: An Internet Gateway is attached to the VPC to allow internet access.
-
+  ![image1](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/image1.PNG)
+ 
 ### Subnets
 
 - **Public Subnet 1**: A public subnet (`10.0.1.0/24`) in the first Availability Zone.
 - **Public Subnet 2**: A public subnet (`10.0.2.0/24`) in the second Availability Zone.
+  ![image2](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/Image2.PNG)
 - **Route Table**: A public route table is created and associated with both public subnets. It has a route to direct internet traffic through the Internet Gateway.
 
 ### Internet Gateway
 
 - **Internet Gateway**: An Internet Gateway is attached to the VPC, allowing instances within the public subnets to access the internet.
+ ![image3](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/image3.PNG)
 
 ### Security Groups
 
 - **RDP Security Group**: Allows Remote Desktop Protocol (RDP) access (port 3389) from any IP address (`0.0.0.0/0`).
 - **ALB Security Group**: Allows HTTP access (port 80) from any IP address (`0.0.0.0/0`).
-
+ ![image4](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/image4.PNG)
+  
 ### Launch Template
 
 - **Launch Template**: Defines the configuration for the EC2 instances, including the AMI (Microsoft Windows Server 2022), instance type (`t3.micro`), security groups, and user data script. The user data script installs IIS (Internet Information Services) on the instances and creates a simple HTML page.
+ ![image2](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/image%205.PNG)
 
 ### Auto Scaling Group
 
@@ -59,16 +64,19 @@ This template sets up a basic web application environment. The architecture incl
 - **Scaling Policies**: Two scaling policies are created:
   - **Scale Out**: Adds instances when average CPU utilization exceeds 70%.
   - **Scale In**: Removes instances when average CPU utilization drops below 30%.
+ ![image6](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/image6.PNG)
 
 ### Application Load Balancer
 
 - **ALB**: An Application Load Balancer distributes incoming traffic across the EC2 instances in the Auto Scaling Group.
 - **Listener**: The ALB listens on port 80 (HTTP) and forwards traffic to the target group.
 - **Target Group**: The ALB targets the EC2 instances managed by the Auto Scaling Group.
+ ![image7](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/image7.PNG)
 
 ### S3 Bucket
 
 - **S3 Bucket**: A simple S3 bucket is created for storing assets or logs. The bucket name is automatically generated using the AWS account ID and region.
+ ![image8](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/image8.PNG)
 
 ## Outputs
 
@@ -113,6 +121,7 @@ To deploy this CloudFormation stack:
 7. **Monitor Stack Creation**:
    - CloudFormation will begin creating the stack. You can monitor progress on the "Events" tab.
    - Once the stack creation is complete, you will see the status as `CREATE_COMPLETE`.
+ ![image9](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/image9.PNG)
 
 8. **Access the Resources**:
    - After the stack is created, you can navigate to the Outputs tab to find useful information like the ALB DNS name, VPC ID, and more.
