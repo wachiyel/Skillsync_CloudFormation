@@ -1,0 +1,600 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 3-Tier Architecture Deployment for Brinve Motors Web Application
+
+Resources:
+  # VPC
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties: 
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: Brinve-VPC
+  
+  # Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:  
+      Tags:
+        - Key: Name 
+          Value: Brinve-IGW
+
+  # Attach Internet Gateway to VPC
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  # Public Subnets
+  # WebSubnet1
+  WebSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.1.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: WebSubnet1
+
+  # WebSubnet2
+  WebSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.2.0/24
+      MapPublicIpOnLaunch: true
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: WebSubnet2  
+
+  # Private Subnets
+  # AppSubnet1
+  AppSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: AppSubnet1
+
+  # AppSubnet2
+  AppSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.4.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: AppSubnet2
+
+  # DBSubnet1
+  DBSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.5.0/24
+      AvailabilityZone: !Select [ 0, !GetAZs '' ]
+      Tags:
+        - Key: Name
+          Value: DBSubnet1
+
+  # DBSubnet2
+  DBSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties: 
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.6.0/24
+      AvailabilityZone: !Select [ 1, !GetAZs '' ] 
+      Tags:
+        - Key: Name
+          Value: DBSubnet2
+
+  # DBSubnet Groups
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: "Subnets available for the RDS DB Instances"
+      SubnetIds:
+        - !Ref DBSubnet1
+        - !Ref DBSubnet2
+
+  # Public Route Table to allow public subnets to access the Internet
+  # PublicRouteTable
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+        - Key: Name
+          Value: PublicRouteTable
+
+  # Route for Public Route Table to direct Internet traffic to the Internet Gateway
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachGateway
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  # Associate Web Subnet 1 with the Public Route Table
+  WebSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref WebSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  # Associate Web Subnet 2 with the Public Route Table
+  WebSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref WebSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  # Private Route Table for private subnets
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  # Associate App Subnet 1 with the Private Route Table
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AppSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  # Associate App Subnet 2 with the Private Route Table
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref AppSubnet2
+      RouteTableId: !Ref PrivateRouteTable
+
+  # Database Route Table for DBSubnets
+  DatabaseRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPC
+
+  # Associate DBSubnet 1 with the Database Route Table
+  DBSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DBSubnet1
+      RouteTableId: !Ref DatabaseRouteTable
+
+  # Associate DBSubnet 2 with the Database Route Table
+  DBSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref DBSubnet2
+      RouteTableId: !Ref DatabaseRouteTable
+
+  # NAT Gateway to allow AppSubnet1 to access the Internet via the NAT
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt Nat1EIP.AllocationId
+      SubnetId: !Ref WebSubnet1
+
+  # NAT Gateway to allow AppSubnet2 to access the Internet via the NAT
+  NatGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt Nat2EIP.AllocationId
+      SubnetId: !Ref WebSubnet2
+
+  # Elastic IP for the NAT Gateway1
+  Nat1EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  # Elastic IP for the NAT Gateway2
+  Nat2EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  # Security Groups
+  # Security Group for Web Servers to allow HTTP and HTTPS traffic
+  WebSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Allow HTTP and HTTPS traffic from the internet
+      VpcId: !Ref VPC
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+  # Security Group for Application Servers
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Allow traffic from Web Load Balancer
+      VpcId: !Ref VPC
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref WebSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref WebSecurityGroup
+  
+  # Ingress rule for AppSecurityGroup to allow MySQL traffic from DBSecurityGroup
+  AppDBIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref AppSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref DBSecurityGroup
+
+  # Security Group for Database Servers
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Allow MySQL traffic
+      VpcId: !Ref VPC
+
+  # Ingress rule for DBSecurityGroup to allow MySQL traffic from AppSecurityGroup
+  DBAppIngressRule:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !Ref DBSecurityGroup
+      IpProtocol: tcp
+      FromPort: 3306
+      ToPort: 3306
+      SourceSecurityGroupId: !Ref AppSecurityGroup
+
+  # Launch Template for Web Server instances
+  WebServerLaunchTemplate:
+    Type: 'AWS::EC2::LaunchTemplate'
+    Properties:
+      LaunchTemplateName: WebServer-LaunchTemplate
+      LaunchTemplateData: 
+        InstanceType: t2.micro
+        KeyName: Brinve_key
+        ImageId: ami-0ae8f15ae66fe8cda
+        SecurityGroupIds: 
+          - !Ref WebSecurityGroup
+        UserData:
+          Fn::Base64: |
+            #!/bin/bash
+            yum update -y
+            yum install -y httpd
+            systemctl start httpd
+            systemctl enable httpd
+            echo "Welcome to Brinve Motors Web Server" > /var/www/html/index.html
+
+  # Launch Template for App Server instances
+  AppServerLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
+    Properties:
+      LaunchTemplateName: AppServer-LaunchTemplate
+      LaunchTemplateData:
+        ImageId: ami-0ae8f15ae66fe8cda
+        InstanceType: t2.micro
+        KeyName: Brinve_key
+        SecurityGroupIds: 
+          - !Ref AppSecurityGroup
+        UserData:
+          Fn::Base64: |
+            #!/bin/bash
+            yum update -y
+            yum install -y httpd
+            systemctl start httpd
+            systemctl enable httpd
+            echo "Welcome to Brinve Motors App Server" > /var/www/html/index.html
+
+  # Launch Template for Database instances
+  DatabaseInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceClass: db.t3.micro  
+      AllocatedStorage: 20
+      DBName: BrinveDB
+      EngineVersion: 8.0.35
+      MasterUsername: admin  
+      MasterUserPassword: Brinve321  
+      DBSubnetGroupName: !Ref DBSubnetGroup 
+      Engine: MySQL
+      MultiAZ: true  
+      BackupRetentionPeriod: 7  # Optional: Retain backups for 7 days
+      StorageType: gp2  # Optional: Use General Purpose SSD for storage
+      VPCSecurityGroups:
+        - !Ref DBSecurityGroup
+
+  # Load Balancers
+  # WebLoadBalancer
+  WebLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets: 
+        - !Ref WebSubnet1  
+        - !Ref WebSubnet2  
+      Scheme: internet-facing
+      SecurityGroups: 
+        - !Ref WebSecurityGroup
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '60'
+      Tags:
+        - Key: Name
+          Value: Web_LB
+
+  # AppLoadBalancer
+  AppLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Subnets: 
+        - !Ref AppSubnet1  
+        - !Ref AppSubnet2
+      Scheme: internal
+      SecurityGroups: 
+        - !Ref AppSecurityGroup
+      LoadBalancerAttributes:
+        - Key: idle_timeout.timeout_seconds
+          Value: '60'
+      Tags:
+        - Key: Name
+          Value: App_LB
+
+  # ALB Listeners
+  # WebListener
+  WebListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref WebTargetGroup
+      LoadBalancerArn: !Ref WebLoadBalancer
+      Port: 80
+      Protocol: HTTP
+  
+  # AppListener
+  AppListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref AppTargetGroup
+      LoadBalancerArn: !Ref AppLoadBalancer
+      Port: 80
+      Protocol: HTTP
+
+  # ALB Target Groups
+  # WebTargetGroup
+  WebTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: WebTargetGroup
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VPC
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 5
+      UnhealthyThresholdCount: 2
+      TargetType: instance
+      Matcher:
+        HttpCode: 200
+
+  # AppTargetGroup
+  AppTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: AppTargetGroup
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VPC  
+      HealthCheckEnabled: true
+      HealthCheckIntervalSeconds: 30
+      HealthCheckPath: /
+      HealthCheckPort: 80
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 5
+      UnhealthyThresholdCount: 2
+      TargetType: instance
+      Matcher:
+        HttpCode: 200
+
+  # Auto-Scaling Groups
+  # Auto Scaling Group for Web Servers to manage instance scaling
+  WebServerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref WebSubnet1
+        - !Ref WebSubnet2
+      LaunchTemplate:
+        LaunchTemplateId: !Ref WebServerLaunchTemplate
+        Version: '1'
+      MinSize: '1'
+      MaxSize: '3'
+      DesiredCapacity: '2'
+      TargetGroupARNs:
+        - !Ref WebTargetGroup
+      Tags:
+        - Key: Name
+          Value: WebServer-ASG
+          PropagateAtLaunch: true
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 300
+
+  # Auto Scaling Group for Application Servers to manage instance scaling
+  AppServerAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+        - !Ref AppSubnet1
+        - !Ref AppSubnet2
+      LaunchTemplate:
+        LaunchTemplateId: !Ref AppServerLaunchTemplate
+        Version: '1'
+      MinSize: '1'
+      MaxSize: '3'
+      DesiredCapacity: '2'
+      TargetGroupARNs:
+        - !Ref AppTargetGroup
+      Tags:
+        - Key: Name
+          Value: AppServer-ASG
+          PropagateAtLaunch: true
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 300
+
+  # Auto Scaling Policies
+  # Web Server Scaling Policy - Scale Out
+  WebScaleOutPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref WebServerAutoScalingGroup
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      ScalingAdjustment: 1
+      Cooldown: 300
+
+  # Web Server Scaling Policy - Scale In
+  WebScaleInPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref WebServerAutoScalingGroup
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      ScalingAdjustment: -1
+      Cooldown: 300
+  
+  # Application Server Scaling Policy - Scale Out
+  AppScaleOutPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AppServerAutoScalingGroup
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      ScalingAdjustment: 1
+      Cooldown: 300
+
+  # Application Server Scaling Policy - Scale In
+  AppScaleInPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AutoScalingGroupName: !Ref AppServerAutoScalingGroup
+      PolicyType: SimpleScaling
+      AdjustmentType: ChangeInCapacity
+      ScalingAdjustment: -1
+      Cooldown: 300
+
+# Outputs
+Outputs:
+  VPCId:
+    Description: The ID of the created VPC
+    Value: !Ref VPC
+    Export:
+      Name: VPCId
+
+  WebSubnet1Id:
+    Description: The ID of the first public subnet for web servers
+    Value: !Ref WebSubnet1
+    Export:
+      Name: WebSubnet1Id
+
+  WebSubnet2Id:
+    Description: The ID of the second public subnet for web servers
+    Value: !Ref WebSubnet2
+    Export:
+      Name: WebSubnet2Id
+
+  AppSubnet1Id:
+    Description: The ID of the first private subnet for application servers
+    Value: !Ref AppSubnet1
+    Export:
+      Name: AppSubnet1Id
+
+  AppSubnet2Id:
+    Description: The ID of the second private subnet for application servers
+    Value: !Ref AppSubnet2
+    Export:
+      Name: AppSubnet2Id
+
+  DBSubnet1Id:
+    Description: The ID of the first private subnet for database servers
+    Value: !Ref DBSubnet1
+    Export:
+      Name: DBSubnet1Id
+
+  DBSubnet2Id:
+    Description: The ID of the second private subnet for database servers
+    Value: !Ref DBSubnet2
+    Export:
+      Name: DBSubnet2Id
+
+  WebSecurityGroupId:
+    Description: The ID of the security group for web servers
+    Value: !Ref WebSecurityGroup
+    Export:
+      Name: WebSecurityGroupId
+
+  AppSecurityGroupId:
+    Description: The ID of the security group for application servers
+    Value: !Ref AppSecurityGroup
+    Export:
+      Name: AppSecurityGroupId
+
+  DBSecurityGroupId:
+    Description: The ID of the security group for database servers
+    Value: !Ref DBSecurityGroup
+    Export:
+      Name: DBSecurityGroupId
+
+  WebLoadBalancerDNSName:
+    Description: The DNS name of the Web Load Balancer
+    Value: !GetAtt WebLoadBalancer.DNSName
+    Export:
+      Name: WebLoadBalancerDNSName
+
+  AppLoadBalancerDNSName:
+    Description: The DNS name of the Application Load Balancer
+    Value: !GetAtt AppLoadBalancer.DNSName
+    Export:
+      Name: AppLoadBalancerDNSName
+
+  WebServerAutoScalingGroupName:
+    Description: The name of the Auto Scaling Group for web servers
+    Value: !Ref WebServerAutoScalingGroup
+    Export:
+      Name: WebServerAutoScalingGroupName
+
+  AppServerAutoScalingGroupName:
+    Description: The name of the Auto Scaling Group for application servers
+    Value: !Ref AppServerAutoScalingGroup
+    Export:
+      Name: AppServerAutoScalingGroupName
