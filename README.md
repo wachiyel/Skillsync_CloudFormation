@@ -56,7 +56,7 @@ This template sets up a basic web application environment. The architecture incl
 ### Launch Template
 
 - **Launch Template**: Defines the configuration for the EC2 instances, including the AMI (Microsoft Windows Server 2022), instance type (`t3.micro`), security groups, and user data script. The user data script installs IIS (Internet Information Services) on the instances and creates a simple HTML page.
- ![image2](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/image%205.PNG)
+ ![image5](https://github.com/wachiyel/Skillsync_CloudFormation/blob/main/screenshots/image%205.PNG)
 
 ### Auto Scaling Group
 
