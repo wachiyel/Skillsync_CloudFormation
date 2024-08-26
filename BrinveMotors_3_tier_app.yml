@@ -225,7 +225,7 @@ Resources:
         - IpProtocol: tcp
           FromPort: 22
           ToPort: 22
-          CidrIp: 0.0.0.0/0
+          CidrIp: 102.219.208.125/32
 
   # Security Group for Application Servers
   AppSecurityGroup:
