@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: '2010-09-09'
-Description: 3-Tier Architecture Deployment for Brinve Motors Web Application
+Description: 3-Tier Architecture Deployment for a Web Application
 
 Resources:
   # VPC
